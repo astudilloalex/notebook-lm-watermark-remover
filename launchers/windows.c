@@ -43,7 +43,7 @@ void start(void) {
     append(entry, append(entry, 0, root), (const WCHAR *)L"app\\desktop_entry.py");
     unsigned int pos = append(command, 0, (const WCHAR *)L"\"");
     pos = append(command, pos, python);
-    pos = append(command, pos, (const WCHAR *)L"\" -I \"");
+    pos = append(command, pos, (const WCHAR *)L"\" -I -B \"");
     pos = append(command, pos, entry);
     pos = append(command, pos, (const WCHAR *)L"\"");
     /* Forward arguments such as --sin-abrir for CI checks. */

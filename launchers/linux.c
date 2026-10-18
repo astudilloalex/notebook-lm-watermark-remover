@@ -16,10 +16,10 @@ int main(int argc, char **argv) {
     *slash = '\0';
     if (snprintf(python, sizeof(python), "%s/runtime/bin/python3", root) >= sizeof(python)) return 1;
     if (snprintf(entry, sizeof(entry), "%s/app/desktop_entry.py", root) >= sizeof(entry)) return 1;
-    char **arguments = calloc((size_t)argc + 3, sizeof(char *));
+    char **arguments = calloc((size_t)argc + 4, sizeof(char *));
     if (!arguments) return 1;
-    arguments[0] = python; arguments[1] = "-I"; arguments[2] = entry;
-    for (int i = 1; i < argc; i++) arguments[i + 2] = argv[i];
+    arguments[0] = python; arguments[1] = "-I"; arguments[2] = "-B"; arguments[3] = entry;
+    for (int i = 1; i < argc; i++) arguments[i + 3] = argv[i];
     execv(python, arguments);
     perror("Could not open NotebookLM Studio");
     return 1;

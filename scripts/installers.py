@@ -70,7 +70,7 @@ def build_linux(base, work):
         " Includes Python, FFmpeg and a browser interface with end-trim previews.\n",
         encoding="utf-8")
     deb = OUTPUT / f"NotebookLM-Studio-{VERSION}-Linux-x64.deb"
-    run("dpkg-deb", "--root-owner-group", "--build", debroot, deb)
+    run("dpkg-deb", "-Zxz", "-z3", "--root-owner-group", "--build", debroot, deb)
     rpmroot = work / "rpmbuild"
     for directory in ("BUILD", "BUILDROOT", "RPMS", "SPECS", "SOURCES", "SRPMS"):
         (rpmroot / directory).mkdir(parents=True, exist_ok=True)
@@ -92,7 +92,7 @@ def build_linux(base, work):
         encoding="utf-8")
     run("rpmbuild", "-bb", "--define", f"_topdir {rpmroot}",
         "--define", "__os_install_post %{nil}", "--define", "_build_id_links none",
-        "--define", "_binary_payload w9.xzdio", spec)
+        "--define", "_binary_payload w3.xzdio", spec)
     rpms = list((rpmroot / "RPMS/x86_64").glob("*.rpm"))
     if len(rpms) != 1:
         raise RuntimeError(f"Expected one RPM, got {rpms}")

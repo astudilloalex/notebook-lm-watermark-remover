@@ -226,7 +226,7 @@ def build(target):
     output.mkdir(exist_ok=True)
     artifact = output/f'NotebookLM-Studio-{label}.{ "tar.gz" if system == "linux" else "zip"}'
     if system == 'linux':
-        with tarfile.open(artifact,'w:gz') as archive:
+        with tarfile.open(artifact,'w:gz',compresslevel=6) as archive:
             for path in package.iterdir():
                 archive.add(path,arcname=path.name,filter=lambda entry:None if '__pycache__' in Path(entry.name).parts or entry.name.endswith('.pyc') else entry)
     else:
