@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NotebookLM · Estudio local</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-icon" aria-hidden="true">N</span><div><strong>NotebookLM</strong><span>ESTUDIO LOCAL</span></div></div>
+    <div class="top-actions"><span class="privacy"><span></span> Todo en tu equipo</span><button class="text-button" id="exit">Cerrar aplicación</button></div>
+  </header>
+  <main>
+    <section class="intro">
+      <div><span class="eyebrow">TU LISTA, UN SOLO PROCESO</span><h1>Vídeos listos para compartir.</h1><p>Añade Shorts y horizontales, revisa la zona del logo y procesa toda la lista.</p></div>
+      <div class="intro-note"><span class="note-icon" aria-hidden="true">↗</span><span>Los originales se conservan.<br><strong>Tú eliges qué procesar.</strong></span></div>
+    </section>
+    <div class="alert hidden" id="tools-alert" role="alert"></div>
+    <p class="session-notice"><strong>Descarga antes de cerrar.</strong> Todos los vídeos generados y las previsualizaciones de esta sesión se eliminan al cerrar la aplicación. Solo se conservan las copias que descargues.</p>
+    <section class="workspace">
+      <div class="queue-column">
+        <section class="card queue-card" aria-label="Lista de vídeos">
+          <div class="section-header"><div><h2>Tu lista de vídeos <span id="queue-count" class="count">0</span></h2><p>Combina formatos; cada vídeo se detecta por separado.</p></div><button id="add" class="button primary small"><span aria-hidden="true">＋</span> Añadir vídeos</button></div>
+          <input id="files" type="file" accept=".mp4,.mov,.mkv,.webm,video/mp4,video/quicktime,video/webm" multiple hidden>
+          <div id="drop-zone" class="drop-zone" tabindex="0" role="button" aria-label="Seleccionar varios vídeos">
+            <span class="upload-symbol" aria-hidden="true">↑</span><div><strong>Arrastra tus vídeos aquí</strong><span>o haz clic para elegir varios archivos</span></div><span class="formats">MP4 · MOV · MKV · WEBM</span>
+          </div>
+          <div class="upload-feedback hidden" id="upload-feedback" role="status"><span id="upload-message"></span><progress id="upload-progress" max="100" value="0"></progress></div>
+          <div class="list-toolbar"><label><input id="select-all" type="checkbox"> Seleccionar todos</label><span id="selection-count">0 seleccionados</span><button class="text-button" id="remove">Quitar seleccionados</button></div>
+          <div class="table-wrap"><table><thead><tr><th class="check-column"><span class="sr-only">Seleccionar</span></th><th>VÍDEO</th><th>FORMATO</th><th>ESTADO</th><th class="action-column"><span class="sr-only">Acciones</span></th></tr></thead><tbody id="items"></tbody></table><div class="empty-list" id="empty-list"><span aria-hidden="true">▤</span><strong>Tu próximo lote empieza aquí</strong><p>Puedes añadir varios vídeos a la vez.</p></div></div>
+          <div class="queue-footer"><span id="queue-summary">Sin vídeos todavía</span><a id="download-all" class="button secondary small disabled" href="/download/all" download="videos_limpios.zip" aria-disabled="true">↓ Descargar resultados ZIP</a></div>
+        </section>
+        <section class="card batch-card" aria-label="Procesar lista">
+          <div class="batch-top"><div><span class="eyebrow">PROCESAMIENTO EN LOTE</span><h2 id="batch-title">Todo preparado para empezar</h2><p id="job-message" aria-live="polite">Añade tus vídeos para comenzar.</p></div><span id="overall-percent" class="overall-percent">0%</span></div>
+          <progress id="overall-progress" max="100" value="0" aria-label="Progreso del lote"></progress>
+          <div class="batch-actions"><span id="batch-hint">Se procesarán uno tras otro para cuidar la memoria.</span><button id="cancel" class="button secondary hidden">Detener</button><button id="process" class="button primary">Procesar seleccionados <span aria-hidden="true">→</span></button></div>
+        </section>
+      </div>
+      <aside class="card inspector" aria-label="Previsualización y ajustes">
+        <div class="inspector-header"><span class="eyebrow">REVISA ANTES DE PROCESAR</span><h2 id="selected-name">Previsualización</h2><p id="selected-meta">Selecciona un vídeo de la lista.</p></div>
+        <div class="preview-tabs" role="tablist" aria-label="Vista del vídeo"><button id="tab-compare" role="tab" aria-selected="true">Antes / después</button><button id="tab-original" role="tab" aria-selected="false">Original</button><button id="tab-tail" role="tab" aria-selected="false">Cierre y corte</button><button id="tab-result" role="tab" aria-selected="false">Resultado</button></div>
+        <div class="preview-stage" id="preview-stage"><div id="preview-empty" class="preview-empty"><span aria-hidden="true">▷</span><strong>Comprueba el resultado</strong><p>Añade un vídeo para ver el antes y después.</p></div><img id="comparison" alt="Comparativa: original con la zona marcada a la izquierda y resultado limpio a la derecha" hidden><video id="player" controls playsinline preload="metadata" hidden></video><div id="preview-loading" class="preview-loading hidden"><span class="spinner"></span><span id="preview-loading-text">Generando previsualización…</span></div></div>
+        <div id="compare-caption" class="preview-caption"><span><i class="red-dot"></i> Izquierda: original y zona</span><span><i class="green-dot"></i> Derecha: resultado</span></div>
+        <div id="compare-controls" class="preview-controls"><label for="preview-second">Fotograma en el segundo</label><div><input id="preview-second" type="number" min="0" value="1" step="0.1" inputmode="decimal"><button id="preview" class="button secondary small">Actualizar vista</button></div></div>
+        <section id="tail-panel" class="tail-panel hidden" aria-label="Revisar el cierre antes de recortar">
+          <div class="tail-load"><div><label class="field-label" for="tail-window">Ver los últimos</label><select id="tail-window"><option value="5">5 segundos</option><option value="10" selected>10 segundos</option><option value="20">20 segundos</option><option value="30">30 segundos</option><option value="60">60 segundos</option></select></div><button id="tail-load" class="button secondary small">Preparar cierre</button></div>
+          <p class="field-help">Vista del original, con audio. El tramo rojo indica lo que se quitará.</p>
+          <div id="tail-editor" class="hidden">
+            <div class="tail-times"><span id="tail-start">00:00.000</span><span id="tail-end">00:00.000</span></div>
+            <div id="tail-timeline" class="tail-timeline"><span id="tail-cut-marker" class="tail-cut-marker" aria-hidden="true"></span><input id="tail-position" type="range" min="0" max="1" step="1" value="0" aria-label="Posición en el cierre"></div>
+            <div class="tail-legend"><span>● Se conserva</span><span>● Se elimina</span></div>
+            <div class="tail-navigation"><button id="tail-back" class="button secondary small" aria-label="Fotograma anterior">−1 fotograma</button><output id="tail-position-label" for="tail-position">00:00.000</output><button id="tail-forward" class="button secondary small" aria-label="Fotograma siguiente">+1 fotograma</button></div>
+            <button id="tail-set-cut" class="button primary full">Terminar aquí · incluir este fotograma</button>
+            <button id="tail-jump-cut" class="text-button full">Ir al último fotograma que se conservará</button>
+            <p id="tail-cut-summary" class="field-help" aria-live="polite"></p>
+          </div>
+          <p id="tail-error" class="field-help hidden" role="alert"></p>
+        </section>
+        <p id="preview-stale" class="stale hidden">Los ajustes cambiaron. Actualiza la vista para comprobarlos.</p>
+        <p id="selected-error" class="stale hidden" role="alert"></p>
+        <div class="settings">
+          <div class="settings-title"><h3>Ajustes de este vídeo</h3><span id="saved-state">Guardado automático</span></div>
+          <label class="field-label" for="profile">Formato</label><select id="profile"><option value="auto">Detectar automáticamente</option><option value="explainer">Horizontal · Explainer (24 fps)</option><option value="cinematic">Horizontal · Cinematic (30 fps)</option><option value="short">Short vertical</option><option value="legacy">Short antiguo (60 fotogramas)</option><option value="manual">Región personalizada</option></select>
+          <label class="field-label" for="quality">Calidad de salida</label><select id="quality"><option value="calidad">Alta · conserva los FPS</option><option value="equilibrado">Equilibrada · 30 FPS</option><option value="rapido">Rápida · 15 FPS</option></select>
+          <label class="switch-row"><span><strong>Recortar el cierre de NotebookLM</strong><small>Elige cuánto quitar al final del vídeo.</small></span><input id="trim" class="switch" type="checkbox" checked></label>
+          <div id="trim-options" class="trim-options">
+            <label class="field-label" for="trim-mode">Cómo recortar</label><select id="trim-mode" aria-describedby="trim-summary"><option value="auto">Automático según el formato</option><option value="fotogramas">Número de fotogramas</option><option value="segundos">Duración en segundos</option></select>
+            <div id="trim-frames-field" class="hidden"><label class="field-label" for="trim-frames">Fotogramas que quitar del final</label><input id="trim-frames" type="number" min="0" step="1" value="90" required inputmode="numeric" aria-describedby="trim-summary"></div>
+            <div id="trim-seconds-field" class="hidden"><label class="field-label" for="trim-seconds">Segundos que quitar del final</label><input id="trim-seconds" type="number" min="0" step="any" value="3" required inputmode="decimal" aria-describedby="trim-summary"></div>
+          </div>
+          <p id="trim-summary" class="field-help trim-summary" aria-live="polite">Se calculará según el formato de cada vídeo.</p>
+          <details id="advanced"><summary>Ajustes de posición</summary><label class="switch-row"><span><strong>Buscar el logo superior</strong><small>Solo en horizontales; revisa la vista.</small></span><input id="smart" class="switch" type="checkbox"></label><label class="switch-row"><span><strong>Logo a la izquierda</strong><small>Para el perfil Explainer.</small></span><input id="rtl" class="switch" type="checkbox"></label><label for="region" class="field-label">Región personalizada, opcional</label><input id="region" type="text" placeholder="X:Y:ANCHO:ALTO" autocomplete="off"><small class="field-help">Píxeles del vídeo original. Deja vacío para usar el perfil.</small></details>
+          <button id="apply-all" class="button secondary full">Aplicar ajustes a los seleccionados</button>
+          <p class="settings-help">Para usar el mismo recorte en todo el lote, marca Seleccionar todos y aplica los ajustes. Cada vídeo también puede tener su propio recorte.</p>
+        </div>
+      </aside>
+    </section>
+    <footer class="page-footer"><span>Los vídeos se procesan localmente con FFmpeg.</span><span>Resultados temporales · se eliminan al cerrar</span></footer>
+  </main>
+  <div class="toast hidden" id="toast" role="status"></div>
+  <dialog id="confirm-exit"><h2>Cerrar y eliminar esta sesión</h2><p id="close-summary">Se eliminarán todos los vídeos generados y las previsualizaciones de esta sesión. Los resultados sin descargar se perderán.</p><p>Espera a que terminen tus descargas. Si hay una tarea o descarga en curso, se detendrá al cerrar. Tus originales y las copias ya descargadas se conservan.</p><a id="close-download" class="button secondary full" href="/download/all" download="videos_limpios.zip">Descargar resultados ZIP antes de cerrar</a><div><button id="keep-open" class="button secondary">Seguir aquí</button><button id="close-now" class="button primary">Eliminar sesión y cerrar</button></div></dialog>
+</body>
+</html>

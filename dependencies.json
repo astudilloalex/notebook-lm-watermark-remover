@@ -1,0 +1,60 @@
+{
+  "components": {
+    "python-mac-intel": {
+      "file": "python-mac-intel.tar.gz",
+      "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261013/cpython-3.13.16%2B20261013-x86_64-apple-darwin-install_only_stripped.tar.gz",
+      "sha256": "f507ae04eb7747cd97cb484e8c5d83936cbfc52d9b08a1f35c00b47c707b1ae1"
+    },
+    "python-mac-arm": {
+      "file": "python-mac-arm.tar.gz",
+      "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261013/cpython-3.13.16%2B20261013-aarch64-apple-darwin-install_only_stripped.tar.gz",
+      "sha256": "16a5332fb0dcb77f163fc8f8cbccd95be1644cc53e68e5d2a79f50afd6680a0e"
+    },
+    "python-windows": {
+      "file": "python-windows.zip",
+      "url": "https://www.python.org/ftp/python/3.13.16/python-3.13.16-embed-amd64.zip",
+      "sha256": "97dae5274cc54867065e8d5a3226e48c35017ed332a0fdb0e27d5b5821961297"
+    },
+    "python-linux": {
+      "file": "python-linux.tar.gz",
+      "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261013/cpython-3.13.16%2B20261013-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz",
+      "sha256": "d0080766b6b74aeb81e1949ef0d9a20e6c17f7b160fb295a69b936ccb17660be"
+    },
+    "ffmpeg-mac-arm": {
+      "file": "ffmpeg-mac-arm.zip",
+      "url": "https://ffmpeg.martin-riedl.de/download/macos/arm64/1789931890_9.0.2/ffmpeg.zip",
+      "sha256": "c8ed4c4e6978a03c485edbfe4e0a5dc2380f8a30bba5150531b31b094492d924"
+    },
+    "ffprobe-mac-arm": {
+      "file": "ffprobe-mac-arm.zip",
+      "url": "https://ffmpeg.martin-riedl.de/download/macos/arm64/1789931890_9.0.2/ffprobe.zip",
+      "sha256": "fcbe839537485eaee7a7a8bc5cbc0f90d53617e80943e8a5b2e31cb851197ea6"
+    },
+    "ffmpeg-linux": {
+      "file": "ffmpeg-linux.tar.xz",
+      "release": {
+        "repo": "BtbN/FFmpeg-Builds",
+        "tag": "latest",
+        "asset": "ffmpeg-n8.1-latest-linux64-gpl-8.1.tar.xz"
+      }
+    },
+    "ffprobe-mac-intel": {
+      "file": "ffprobe-mac-intel.zip",
+      "url": "https://ffmpeg.martin-riedl.de/download/macos/amd64/1789931006_9.0.2/ffprobe.zip",
+      "sha256": "2322438ed2f6319a691291b247d09c69dcaa3a982460d1f269a7e1af335cfdfd"
+    },
+    "ffmpeg-mac-intel": {
+      "file": "ffmpeg-mac-intel.zip",
+      "url": "https://ffmpeg.martin-riedl.de/download/macos/amd64/1789931006_9.0.2/ffmpeg.zip",
+      "sha256": "7c6b4125b191cbf773832dc51f424cf2b6bb7da43007d1e066f95909e47cacd4"
+    },
+    "ffmpeg-windows": {
+      "file": "ffmpeg-windows.zip",
+      "release": {
+        "repo": "BtbN/FFmpeg-Builds",
+        "tag": "latest",
+        "asset": "ffmpeg-n8.1-latest-win64-gpl-8.1.zip"
+      }
+    }
+  }
+}
