@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interfaz de navegador local para el procesador NotebookLM."""
+"""Local browser interface for the NotebookLM processor."""
 
 from __future__ import annotations
 
@@ -61,7 +61,7 @@ def find_tool(name: str) -> str | None:
     found = shutil.which(name)
     if found:
         return found
-    # Finder y los accesos directos pueden tener un PATH más reducido.
+    # Finder and desktop shortcuts may have a reduced PATH.
     for folder in ("/opt/homebrew/bin", "/usr/local/bin", "/usr/bin"):
         candidate = Path(folder) / executable
         if candidate.is_file():
@@ -382,11 +382,11 @@ class Application:
 
     def cli(self, item: Item) -> list[str]:
         options = item.settings
-        # pythonw en Windows se sustituye por python para recoger el progreso.
+        # Replace Windows pythonw with python to capture progress output.
         python = Path(sys.executable)
         if python.name.lower() == "pythonw.exe" and python.with_name("python.exe").exists():
             python = python.with_name("python.exe")
-        command = [str(python), "-u", str(ROOT / "notebooklm_ffmpeg.py"), str(item.source),
+        command = [str(python), "-B", "-u", str(ROOT / "notebooklm_ffmpeg.py"), str(item.source),
                    "--ffmpeg", self.ffmpeg, "--ffprobe", self.ffprobe,
                    "--perfil", options["perfil"], "--modo", options["modo"]]
         if not options["recortar"]:
@@ -588,7 +588,7 @@ class Application:
             self.worker.join(timeout=15)
             if self.worker.is_alive():
                 raise AppError("La tarea todavía se está deteniendo. Vuelve a intentar cerrar en unos segundos.")
-        # Al confirmar el cierre se cancelan las transferencias que sigan abiertas.
+        # Cancel open transfers when session closure is confirmed.
         with self.transfer_condition:
             for connection in tuple(self.transfers):
                 try:

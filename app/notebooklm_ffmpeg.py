@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Limpieza local de vídeos NotebookLM con Python 3.10+, FFmpeg y ffprobe."""
+"""Local NotebookLM video processing with Python 3.10+, FFmpeg and ffprobe."""
 
 from __future__ import annotations
 
@@ -21,11 +21,11 @@ VERSION = "1.0.0"
 
 
 class ProcessingError(Exception):
-    """Error legible para quien utiliza la herramienta."""
+    """User-readable processing error."""
 
 
 def subprocess_options() -> dict:
-    """Evita ventanas de consola de las herramientas al utilizar la interfaz."""
+    """Hide child-tool console windows when running the interface."""
     return {"creationflags": subprocess.CREATE_NO_WINDOW} if os.name == "nt" else {}
 
 
@@ -40,7 +40,7 @@ class Rect:
         return f"x={self.x}:y={self.y}:w={self.w}:h={self.h}"
 
     def validate(self, width: int, height: int) -> Rect:
-        # delogo necesita píxeles vecinos fuera de los cuatro lados.
+        # delogo needs neighboring pixels outside all four sides.
         if min(self.x, self.y) < 1 or min(self.w, self.h) < 2:
             raise ProcessingError("La región necesita x/y >= 1 y ancho/alto >= 2.")
         if self.x + self.w >= width or self.y + self.h >= height:
@@ -187,7 +187,7 @@ def count_frames(path: Path, ffprobe: str, info: VideoInfo) -> int:
 
 
 def rounded(value: float) -> int:
-    """Redondeo de coordenadas positivas equivalente a Math.round de JavaScript."""
+    """Round positive coordinates like JavaScript Math.round."""
     return math.floor(value + 0.5)
 
 
@@ -303,7 +303,7 @@ def smart_scan(path: Path, info: VideoInfo, args: argparse.Namespace) -> list[Se
                 process.wait()
             if process.stdout:
                 process.stdout.close()
-    # Agrupa muestras y amplía las transiciones como el método inspeccionado.
+    # Group sampled intervals and expand their transitions.
     segments: list[Segment] = []
     active, start, center_completed = None, 0, False
     for second in range(len(winners) + 1):
@@ -389,8 +389,8 @@ def make_command(path: Path, target: Path, info: VideoInfo, plan: Plan, args: ar
         command += ["-an"]
     command += ["-c:v", "libx264", "-crf", str(args.crf if args.crf is not None else crf),
                 "-preset", args.preset or preset, "-tune", "stillimage", "-pix_fmt", "yuv420p"]
-    # El filtro trim puede dejar sin duración al último paquete en algunas
-    # versiones de FFmpeg. Declarar la cadencia CFR mantiene la duración N/FPS.
+    # The trim filter can leave the last packet without a duration in some
+    # FFmpeg versions. Explicit CFR cadence preserves the duration N/FPS.
     command += ["-r", fps or str(info.fps), "-fps_mode", "cfr"]
     command += ["-t", f"{plan.duration:.9f}", "-movflags", "+faststart", "-stats", str(target)]
     return command
@@ -405,7 +405,7 @@ def publish(temporary: Path, output: Path, overwrite: bool) -> None:
     except OSError as exc:
         if exc.errno not in (errno.EPERM, errno.ENOTSUP, errno.EXDEV):
             raise
-        # Sistemas de archivos sin enlaces duros: creación exclusiva.
+        # Use exclusive creation on filesystems without hard links.
         with output.open("xb") as destination:
             try:
                 with temporary.open("rb") as source:
@@ -427,7 +427,7 @@ def process_file(path: Path, output: Path, args: argparse.Namespace) -> None:
     if args.deteccion_inteligente:
         plan.segments = smart_scan(path, info, args)
         if not plan.segments:
-            # Mantiene el perfil fijo cuando no hay candidatos, como la herramienta analizada.
+            # Keep the fixed profile region when there are no candidates.
             plan.segments = None
             print("No hubo candidatos claros: se utilizará la región fija del perfil.", flush=True)
     print(f"\nEntrada: {path}\nPerfil: {plan.profile} | {info.width}x{info.height} | {float(info.fps):.6g} fps"
@@ -438,7 +438,7 @@ def process_file(path: Path, output: Path, args: argparse.Namespace) -> None:
         print(f"Duración de salida prevista: {plan.duration:.3f} s | modo: {args.modo}", flush=True)
     if args.simular:
         command = make_command(path, output, info, plan, args)
-        # El procesamiento real usa un archivo temporal único y protege la salida final.
+        # Actual processing uses a unique temporary file and protects the final output.
         command[command.index("-y")] = "-y" if args.sobrescribir else "-n"
         print("Comando equivalente:\n" + (subprocess.list2cmdline(command) if os.name == "nt" else shlex.join(command)))
         return

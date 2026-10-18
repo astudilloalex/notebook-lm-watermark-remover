@@ -1,4 +1,4 @@
-"""Ejecuta la suite con el FFmpeg que se distribuirá para esta plataforma."""
+"""Run the source suite with the FFmpeg bundled for this target."""
 import argparse
 import os
 import subprocess

@@ -1,10 +1,11 @@
-"""Entrada de los paquetes que incluyen su propio intérprete y herramientas."""
+"""Entry point for packages with their own interpreter and tools."""
 
 from pathlib import Path
 import os
 import sys
 import traceback
 
+sys.dont_write_bytecode = True
 APP = Path(__file__).resolve().parent
 sys.path.insert(0, str(APP))
 
@@ -22,12 +23,12 @@ def data_directory() -> Path:
 
 
 def main() -> int:
-    # El paquete mantiene su intérprete aislado también en los procesos hijos.
+    # Keep the bundled interpreter isolated in child processes too.
     os.environ.pop("PYTHONHOME", None)
     os.environ.pop("PYTHONPATH", None)
     data = data_directory()
     data.mkdir(parents=True, exist_ok=True, mode=0o700)
-    # El navegador recibe la interfaz; los diagnósticos quedan en un archivo.
+    # Display the interface in the browser and write diagnostics to a log.
     with (data / "aplicacion.log").open("w", encoding="utf-8", buffering=1) as log:
         os.chmod(data / "aplicacion.log", 0o600)
         old_out, old_error = sys.stdout, sys.stderr
@@ -37,11 +38,11 @@ def main() -> int:
             arguments = list(sys.argv[1:])
             if "--resultados" not in arguments and "--sesiones" not in arguments:
                 arguments += ["--sesiones", str(data / "Sesiones")]
-            # Se verifica el contenido local del paquete, no el PATH del equipo.
+            # Validate the bundled tools rather than the system PATH.
             suffix = ".exe" if os.name == "nt" else ""
             for tool in ("ffmpeg", "ffprobe"):
                 if not (APP / "bin" / (tool + suffix)).is_file():
-                    raise RuntimeError("Falta una herramienta incluida en el paquete: " + tool)
+                    raise RuntimeError("Missing bundled tool: " + tool)
             interfaz_local.main(arguments)
             return 0
         except KeyboardInterrupt:
@@ -50,7 +51,7 @@ def main() -> int:
             traceback.print_exc()
             if os.name == "nt":
                 import ctypes
-                ctypes.windll.user32.MessageBoxW(None, "No se pudo iniciar la aplicación. Comprueba que descomprimiste el paquete completo.\n\nEl detalle está en:\n" + str(data / "aplicacion.log"), "NotebookLM Studio", 0x10)
+                ctypes.windll.user32.MessageBoxW(None, "Could not start the app. Reinstall it or extract the complete portable package.\n\nDetails are recorded in:\n" + str(data / "aplicacion.log"), "NotebookLM Studio", 0x10)
             return 1
         finally:
             sys.stdout, sys.stderr = old_out, old_error

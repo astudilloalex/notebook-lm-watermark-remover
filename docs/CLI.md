@@ -1,201 +1,115 @@
-# Uso del procesador por consola
+# Command-line processor
 
-Los ejemplos se ejecutan desde la carpeta `app/`. La interfaz con botones se describe en [USO.md](USO.md).
+The installed application uses buttons; this guide is for source development and automation. Existing Spanish CLI option names and values are retained for compatibility. All examples below run from the `app/` directory.
 
-Herramienta independiente para vídeos horizontales y Shorts de NotebookLM. Ejecuta FFmpeg nativo en tu equipo. El script no contiene llamadas HTTP, no carga la página analizada y no descarga motores ni modelos.
+The processor uses Python 3.10+ and native FFmpeg/ffprobe with `delogo` and `libx264`. It does not load an external remover website or download a model. There are no pip dependencies.
 
-Incluye perfiles por formato, limpieza con `delogo`, recorte del cierre, imagen comparativa, lotes, exploración opcional por contraste y sustitución por un PNG propio. Requiere Python 3.10 o posterior y una instalación de FFmpeg que incluya `ffprobe`, `delogo` y `libx264`. No requiere paquetes de Python.
+## Basic usage
 
-## Empezar
-
-Descarga y descomprime el paquete. Abre una terminal dentro de esta carpeta y comprueba:
-
-```bash
-python3 --version
-ffmpeg -version
-ffprobe -version
+```sh
+python notebooklm_ffmpeg.py "video.mp4"
+python notebooklm_ffmpeg.py "video.mp4" --ffmpeg "/path/to/ffmpeg" --ffprobe "/path/to/ffprobe"
 ```
 
-En Windows puedes usar `py` en lugar de `python3`. En algunas instalaciones el comando es `python`.
+The default output is `video_limpio.mp4` beside the input. Video is re-encoded as H.264, normally at detected FPS, CRF 18 and preset `medium`; audio is AAC at 192 kbit/s. This is not lossless reconstruction.
 
-FFmpeg se obtiene desde [su página oficial](https://ffmpeg.org/download.html). En Ubuntu/Debian también puedes instalarlo con `sudo apt install ffmpeg`; en macOS, con Homebrew instalado, `brew install ffmpeg`. Python está disponible en [python.org](https://www.python.org/downloads/).
+Originals are protected. Existing outputs require `--sobrescribir`; a failed conversion removes its temporary output. CLI outputs are persistent, unlike browser-interface sessions.
 
-Si FFmpeg no está en el PATH, indica las rutas explícitamente:
+## Profiles and end trimming
 
-```bash
-python3 notebooklm_ffmpeg.py "video.mp4" --ffmpeg "/ruta/ffmpeg" --ffprobe "/ruta/ffprobe"
+| `--perfil` | Automatic detection | Default end trim |
+| --- | --- | --- |
+| `explainer` | Approximately 16:9 and 24 FPS | 72 frames |
+| `cinematic` | Approximately 16:9 and 30 FPS | 90 frames |
+| `short` | Approximately 9:16 | 90 frames |
+| `legacy` | Manual legacy Short selection | 60 frames |
+| `manual` | Requires an explicit region | None |
+
+The default `auto` profile selects by aspect ratio and FPS. The horizontal tolerance is 0.1 FPS, including 23.976 and 29.97. Profiles scale coordinates for supported resolutions; they do not identify an actual NotebookLM export or recognize its closing screen.
+
+```sh
+python notebooklm_ffmpeg.py "horizontal.mp4" --perfil cinematic
+python notebooklm_ffmpeg.py "vertical.mp4" --perfil short
+python notebooklm_ffmpeg.py "video.mp4" --sin-recorte
+python notebooklm_ffmpeg.py "video.mp4" --recortar-fotogramas 60
+python notebooklm_ffmpeg.py "video.mp4" --recortar-segundos 2.5
 ```
 
-En Windows, por ejemplo:
+The three explicit trim choices are mutually exclusive. Frame trimming uses the declared total or counts frames with ffprobe. Inputs shorter than the trim are rejected. For variable-frame-rate sources, use seconds or disable trimming: materially different nominal/average FPS cause automatic frame trimming to be rejected. This detection is heuristic, and output cadence is normalized.
 
-```powershell
-py notebooklm_ffmpeg.py "C:\Videos\video.mp4" --ffmpeg "C:\ffmpeg\bin\ffmpeg.exe" --ffprobe "C:\ffmpeg\bin\ffprobe.exe"
+## Preview and inspect
+
+```sh
+python notebooklm_ffmpeg.py "video.mp4" --previsualizar "preview.png" --segundo 1
+python notebooklm_ffmpeg.py "video.mp4" --duracion-prueba 5 -o "sample.mp4"
+python notebooklm_ffmpeg.py "video.mp4" --simular
 ```
 
-## Uso básico
+The PNG shows the original/marked region on the left and the processed frame on the right. It does not trim or generate the complete output. For short inputs choose a timestamp within the input duration.
 
-```bash
-python3 notebooklm_ffmpeg.py "video.mp4"
+The sample starts at the beginning and respects the configured ending trim. Simulation prints the plan and an equivalent FFmpeg command. Simulation may still read the full input to count frames or perform contrast detection.
+
+## Custom regions
+
+`--rect X:Y:WIDTH:HEIGHT` uses original pixels with the origin at the upper-left corner. Leave at least one outer pixel on every side for interpolation.
+
+```sh
+python notebooklm_ffmpeg.py "video.mp4" --rect 1141:686:134:24 --previsualizar "region.png"
+python notebooklm_ffmpeg.py "other.mp4" --perfil manual --rect 1141:686:134:24
 ```
 
-Genera `video_limpio.mp4` junto al original. Conserva la resolución y la tasa de fotogramas detectada en el modo predeterminado. Recodifica el vídeo en H.264 con CRF 18 y preset `medium`; el audio se exporta en AAC a 192 kbit/s.
+The manual profile preserves the ending unless an explicit trim is supplied. To keep an Explainer's default trim while correcting the region, use `--perfil explainer --rect ...`.
 
-El original se protege siempre. Una salida existente solo se reemplaza al indicar `--sobrescribir`. El resultado se genera primero en un archivo temporal de la carpeta de destino; si FFmpeg falla, se retira ese temporal.
+| Geometry | Typical X:Y:WIDTH:HEIGHT |
+| --- | --- |
+| Horizontal 1280 × 720 | `1141:686:134:24` |
+| Horizontal 1920 × 1080 | `1712:1029:203:36` |
+| Short 406 × 720 | `291:688:109:27` |
+| Short 720 × 1280 | `516:1223:193:48` |
 
-## Perfiles y recorte del cierre
+`--rtl` selects a left-side logo for Explainer and contrast detection. Cinematic retains its lower-right profile; use a custom rectangle for another location.
 
-| Perfil | Identificación automática | Cierre eliminado por defecto |
-|---|---|---:|
-| `explainer` | Horizontal aproximadamente 16:9, cerca de 24 fps | 72 fotogramas |
-| `cinematic` | Horizontal aproximadamente 16:9, cerca de 30 fps | 90 fotogramas |
-| `short` | Vertical aproximadamente 9:16 | 90 fotogramas |
-| `legacy` | Selección manual para Shorts antiguos | 60 fotogramas |
-| `manual` | Selección manual con `--rect` | Sin recorte automático |
+## Optional contrast detection
 
-Se admiten, entre otras, las resoluciones 1280×720, 1920×1080, 406×720 y 720×1280 mediante el escalado de coordenadas. La tolerancia de identificación horizontal es de 0,1 fps, lo que incluye 23,976 y 29,97 fps.
-
-Los perfiles son reglas basadas en los formatos revisados en octubre de 2026. La identificación comprueba proporción y FPS; no autentica que el vídeo provenga de NotebookLM ni reconoce visualmente la pantalla final. Una futura exportación puede necesitar otras coordenadas o un recorte diferente.
-
-Para forzar un perfil:
-
-```bash
-python3 notebooklm_ffmpeg.py "horizontal.mp4" --perfil cinematic
-python3 notebooklm_ffmpeg.py "vertical.mp4" --perfil short
-python3 notebooklm_ffmpeg.py "short_antiguo.mp4" --perfil legacy
+```sh
+python notebooklm_ffmpeg.py "horizontal.mp4" --deteccion-inteligente
+python notebooklm_ffmpeg.py "horizontal.mp4" --deteccion-inteligente --umbral 600
 ```
 
-Conserva todo el cierre o cambia el corte:
+One frame per second is sampled. RGB brightness variation is measured in predefined bottom and upper-center windows and grouped into intervals; the default threshold is 400. Cleanup runs in selected intervals with slightly expanded transitions. If no candidates are found, the fixed profile region is used.
 
-```bash
-python3 notebooklm_ffmpeg.py "video.mp4" --sin-recorte
-python3 notebooklm_ffmpeg.py "video.mp4" --recortar-fotogramas 60
-python3 notebooklm_ffmpeg.py "video.mp4" --recortar-segundos 2.5
-```
+This heuristic can mistake titles or drawings for a logo. It scans the complete video and adds work. It supports horizontal profiles only and cannot be combined with `--rect` or `--logo`.
 
-Estas tres opciones son mutuamente excluyentes. El recorte predeterminado por fotogramas usa el total indicado por el contenedor; si no existe, ffprobe lo cuenta. Si el vídeo no tiene suficientes fotogramas, se detiene con una explicación.
+## Quality, audio and logo overlay
 
-Para una exportación con FPS variables se recomienda `--recortar-segundos` o `--sin-recorte`; cuando la tasa media y nominal difieren de forma apreciable, el corte automático por fotogramas se rechaza. La salida se normaliza a una cadencia constante: en modo calidad usa la tasa media detectada. Esta comprobación de FPS variables es aproximada.
-
-## Comprobar la región antes de exportar
-
-```bash
-python3 notebooklm_ffmpeg.py "video.mp4" --previsualizar "vista.png" --segundo 1
-```
-
-Genera un PNG con dos paneles: a la izquierda el original con la región marcada en rojo; a la derecha el resultado. Esta operación no crea un MP4 ni recorta el cierre. Para vídeos inferiores a un segundo usa, por ejemplo, `--segundo 0.2`.
-
-Para exportar solo una muestra breve:
-
-```bash
-python3 notebooklm_ffmpeg.py "video.mp4" --duracion-prueba 5 -o "prueba.mp4"
-```
-
-La muestra empieza en el inicio del vídeo y respeta el recorte configurado. Para comprobar un archivo corto sin descontar el cierre, añade `--sin-recorte`.
-
-Para inspeccionar el plan y obtener un comando FFmpeg equivalente sin crear resultados:
-
-```bash
-python3 notebooklm_ffmpeg.py "video.mp4" --simular
-```
-
-La simulación puede leer el vídeo completo si necesita contar fotogramas o si activas la exploración inteligente.
-
-## Ajustar coordenadas
-
-`--rect X:Y:ANCHO:ALTO` utiliza píxeles de la resolución del vídeo. El origen `(0,0)` es la esquina superior izquierda. El rectángulo debe dejar al menos un píxel exterior en cada lado para que `delogo` pueda interpolar.
-
-Ejemplo para el perfil horizontal normal a 1280×720:
-
-```bash
-python3 notebooklm_ffmpeg.py "video.mp4" --rect 1141:686:134:24 --previsualizar "zona.png"
-```
-
-Para una exportación no reconocida:
-
-```bash
-python3 notebooklm_ffmpeg.py "otro.mp4" --perfil manual --rect 1141:686:134:24
-```
-
-`manual` conserva el cierre salvo que indiques un corte explícito. Si solo necesitas corregir la posición y mantener los 72 fotogramas del perfil Explainer, usa `--perfil explainer --rect ...`.
-
-Coordenadas calculadas para perfiles habituales:
-
-| Formato | Región X:Y:ANCHO:ALTO |
-|---|---|
-| Horizontal 1280×720 | `1141:686:134:24` |
-| Horizontal 1920×1080 | `1712:1029:203:36` |
-| Short 406×720 | `291:688:109:27` |
-| Short 720×1280 | `516:1223:193:48` |
-
-Para Explainer con el logo a la izquierda, usa `--rtl`. En Cinematic se conserva el perfil inferior derecho, como en el comportamiento analizado. `--rect` permite elegir cualquier otra posición.
-
-## Detección inteligente opcional
-
-```bash
-python3 notebooklm_ffmpeg.py "horizontal.mp4" --deteccion-inteligente
-```
-
-Explora una imagen por segundo, calcula la varianza del promedio RGB en dos ventanas predefinidas —inferior y superior central— y agrupa las muestras en intervalos. El umbral predeterminado es 400. Se aplica `delogo` únicamente en los intervalos elegidos; las transiciones se amplían ligeramente. Si no encuentra candidatos, vuelve al rectángulo fijo del perfil.
-
-La estrategia reproduce la idea del método inspeccionado con FFmpeg nativo. El muestreo temporal y los límites de los intervalos pueden variar ligeramente respecto de la versión del navegador. Es una heurística de contraste: un título o un dibujo dentro de las ventanas también puede activar la limpieza. Revisa el resultado cuando la utilices.
-
-```bash
-python3 notebooklm_ffmpeg.py "horizontal.mp4" --deteccion-inteligente --umbral 600
-```
-
-Solo corresponde a los perfiles horizontales y no se combina con `--rect` ni con `--logo`. Recorre el vídeo completo y aumenta el tiempo de trabajo.
-
-## Calidad, velocidad y audio
-
-| Modo | FPS de salida | CRF | Preset |
-|---|---|---:|---|
-| `calidad` —predeterminado— | Tasa detectada | 18 | `medium` |
+| `--modo` | Output FPS | CRF | Preset |
+| --- | --- | --- | --- |
+| `calidad` (default) | Detected | 18 | `medium` |
 | `equilibrado` | 30 | 23 | `veryfast` |
 | `rapido` | 15 | 28 | `ultrafast` |
 
-Los modos rápido y equilibrado usan los FPS y CRF identificados en la página. El modo calidad utiliza el mismo CRF 18 con un preset orientado a una mejor eficiencia de compresión. `medium` requiere más tiempo que `superfast`; el tamaño y aspecto de los archivos no serán idénticos a los generados por la página.
-
-```bash
-python3 notebooklm_ffmpeg.py "video.mp4" --modo rapido
-python3 notebooklm_ffmpeg.py "video.mp4" --modo calidad --crf 16 --preset slow
-python3 notebooklm_ffmpeg.py "video.mp4" --audio copiar
-python3 notebooklm_ffmpeg.py "video.mp4" --audio sin
+```sh
+python notebooklm_ffmpeg.py "video.mp4" --modo rapido
+python notebooklm_ffmpeg.py "video.mp4" --modo calidad --crf 16 --preset slow
+python notebooklm_ffmpeg.py "video.mp4" --audio copiar
+python notebooklm_ffmpeg.py "video.mp4" --audio sin
+python notebooklm_ffmpeg.py "video.mp4" --logo "my-logo.png"
 ```
 
-El vídeo se recodifica. CRF 18 conserva buena calidad visual, pero no constituye una copia sin pérdidas. `--crf 0` cambia la compresión del vídeo; la interpolación de la región sigue modificando píxeles.
+`--audio copiar` copies the first audio stream if its codec fits MP4; trimming follows audio-packet boundaries. The default AAC mode re-encodes to match output duration. `--audio sin` removes audio. Subtitles, data streams, chapters, additional audio tracks and all original tags are not preserved.
 
-El audio predeterminado se recodifica a AAC para recortar su duración. `--audio copiar` conserva sus paquetes originales, siempre que su códec sea compatible con MP4; el corte queda limitado a la granularidad de esos paquetes. Solo se conserva la primera pista de audio. No se copian subtítulos, pistas de datos, capítulos ni todas las etiquetas del original.
+An optional PNG is proportionally fitted and centered inside the cleaned region. Transparency is recommended. It also works in image previews and cannot be combined with contrast detection.
 
-## Añadir un logo propio
+## Batches and limits
 
-```bash
-python3 notebooklm_ffmpeg.py "video.mp4" --logo "mi_logo.png"
+```sh
+python notebooklm_ffmpeg.py "one.mp4" "two.mp4" --carpeta-salida "processed"
 ```
 
-El PNG se ajusta proporcionalmente, se centra dentro de la región limpiada y se superpone. Se recomienda transparencia. También funciona con `--previsualizar`; no se combina con la exploración inteligente.
+Failed inputs do not stop later files; any failure produces exit code 1. Avoid equal base names in a shared output directory. Shell-expanded wildcards can be used where supported.
 
-## Procesar varios archivos
+`delogo` interpolates neighboring pixels and cannot restore hidden artwork, textures or text. Typical NotebookLM inputs have square pixels, even dimensions and orientation applied to pixels. Metadata rotation and incompatible geometry are rejected. Filenames are passed as arguments without shell interpretation.
 
-```bash
-python3 notebooklm_ffmpeg.py "uno.mp4" "dos.mp4" --carpeta-salida "limpios"
-```
+Tests use real FFmpeg with synthetic inputs to verify geometry, trim counts, FPS, audio, contrast detection, PNG overlays, batches, special filenames, previews and source/output protection. Synthetic fixtures do not establish visual accuracy for every real export; inspect the preview.
 
-Si una entrada falla, continúa con las demás y termina con código de salida 1. Evita lotes cuyos archivos tengan el mismo nombre base dentro de una misma carpeta de salida. En terminales que expanden comodines también puedes utilizar `*.mp4`.
-
-## Qué hace la limpieza
-
-`delogo` reconstruye un rectángulo mediante los píxeles vecinos. Funciona mejor sobre fondos uniformes. Si el logo cubre una ilustración, textura o texto, esa información puede no ser recuperable; una región demasiado grande también borrará contenido válido.
-
-El script está pensado para los MP4 habituales de NotebookLM, con píxeles cuadrados, dimensiones pares y orientación aplicada a la imagen. Rechaza rotación por metadatos y geometrías incompatibles para evitar calcular la región sobre una orientación equivocada. Los nombres con espacios se pasan como argumentos, sin ejecutar su contenido como instrucciones de terminal.
-
-## Validación
-
-Las pruebas generan vídeos sintéticos y ejecutan FFmpeg real. Comprueban los cuatro tamaños de la tabla, perfiles y cierres, audio, número de fotogramas, FPS, previsualización, reducción de variación de píxeles en la región, PNG propio, detección superior, lotes, nombres con caracteres especiales y protección de originales/salidas.
-
-```bash
-python3 -m unittest discover -s tests -v
-```
-
-No se ha validado con una exportación real aportada por el usuario. La prueba sintética verifica el funcionamiento técnico; el ajuste visual de una exportación concreta se revisa con la previsualización.
-
-Referencias técnicas: [filtro delogo](https://ffmpeg.org/ffmpeg-filters.html#delogo), [ffprobe](https://ffmpeg.org/ffprobe.html), [opciones de FFmpeg](https://ffmpeg.org/ffmpeg.html). El código se escribió de forma independiente a partir del análisis del comportamiento; no necesita ni incluye los paquetes JavaScript de la página.
+References: [FFmpeg delogo](https://ffmpeg.org/ffmpeg-filters.html#delogo), [ffprobe](https://ffmpeg.org/ffprobe.html), [FFmpeg options](https://ffmpeg.org/ffmpeg.html).

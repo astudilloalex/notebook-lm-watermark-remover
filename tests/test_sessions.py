@@ -1,4 +1,4 @@
-"""Limpieza de sesiones, aislamiento entre procesos y recuperación tras fallos."""
+"""Session cleanup, interprocess isolation and crash recovery."""
 
 import json
 import os

@@ -102,7 +102,7 @@ function renderTrim() {
     seconds = frames / item.fps;
   } else {
     const input = mode === "fotogramas" ? $("trim-frames") : $("trim-seconds");
-    // Los controles inactivos también se consultan mientras se procesa un vídeo.
+    // Inactive controls are also read while processing a video.
     const value = input.valueAsNumber;
     if (!Number.isFinite(value) || value < 0 || (mode === "fotogramas" && !Number.isInteger(value))) {
       summary.textContent = "Introduce una cantidad válida para recortar.";

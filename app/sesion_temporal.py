@@ -1,4 +1,4 @@
-"""Carpetas de sesión desechables, con exclusión entre procesos."""
+"""Disposable session directories with interprocess exclusion."""
 
 from contextlib import contextmanager
 import json
@@ -80,7 +80,7 @@ def remove_tree(path):
 
 
 def remove_session(path):
-    # La identificación se mantiene si algún archivo sigue bloqueado por el SO.
+    # Retain ownership metadata if a file remains locked by the OS.
     for child in path.iterdir():
         if child.name in (MARKER, ".activa.lock"):
             continue
@@ -112,7 +112,7 @@ class SessionDirectory:
                     remove_session(path)
                     self.abandoned_removed += 1
                 except OSError:
-                    # Una sesión activa conserva el bloqueo hasta terminar.
+                    # An active session keeps its lock until it exits.
                     self.cleanup_pending += 1
             self.path = self.root / ("sesion-" + uuid.uuid4().hex)
             self.path.mkdir(mode=0o700)

@@ -1,4 +1,4 @@
-"""Pruebas de vídeo reales; solo usan FFmpeg, ffprobe y la biblioteca estándar."""
+"""Real video tests using FFmpeg, ffprobe and the standard library."""
 
 import hashlib
 import json

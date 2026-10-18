@@ -6,3 +6,6 @@
 *.yml text eol=lf
 *.md text eol=lf
 *.json text eol=lf
+*.iss text eol=lf
+*.desktop text eol=lf
+*.xml text eol=lf

@@ -1,4 +1,4 @@
-"""Genera los iconos de distribución a partir de geometría; sin imágenes binarias en Git."""
+"""Generate distribution icons from geometry; no binary images in Git."""
 
 from pathlib import Path
 import struct

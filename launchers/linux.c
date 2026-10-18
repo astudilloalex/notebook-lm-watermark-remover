@@ -5,7 +5,7 @@
 #include <string.h>
 #include <unistd.h>
 
-/* No busca Python en el sistema: siempre utiliza la copia del paquete. */
+/* Always use the bundled interpreter rather than searching the system. */
 int main(int argc, char **argv) {
     char root[PATH_MAX], python[PATH_MAX], entry[PATH_MAX];
     ssize_t count = readlink("/proc/self/exe", root, sizeof(root) - 1);
@@ -21,6 +21,6 @@ int main(int argc, char **argv) {
     arguments[0] = python; arguments[1] = "-I"; arguments[2] = entry;
     for (int i = 1; i < argc; i++) arguments[i + 2] = argv[i];
     execv(python, arguments);
-    perror("No se pudo abrir NotebookLM Studio");
+    perror("Could not open NotebookLM Studio");
     return 1;
 }

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=NotebookLM Studio
+Comment=Process NotebookLM videos locally with FFmpeg
+Exec="/opt/notebooklm-studio/NotebookLM Studio"
+Icon=io.github.astudilloalex.NotebookLMStudio
+Terminal=false
+Categories=AudioVideo;Video;
+StartupNotify=false

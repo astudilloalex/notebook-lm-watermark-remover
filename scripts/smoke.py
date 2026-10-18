@@ -1,4 +1,4 @@
-"""Prueba el paquete final: sin herramientas en PATH, descargas y limpieza al cerrar."""
+"""Exercise a staged or installed app without system tools, including downloads and cleanup."""
 
 import argparse
 import hashlib
@@ -18,23 +18,29 @@ from build import BUILD,ROOT,TARGETS,layout
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--target',required=True,choices=TARGETS)
+parser.add_argument('--base',type=Path,help='Installed base directory (Resources inside a macOS bundle).')
+parser.add_argument('--label',default='portable')
 args = parser.parse_args()
 package,base,app,launcher = layout(args.target)
-work = BUILD/'smoke'/args.target
+if args.base:
+    base = args.base.resolve()
+    app = base/'app'
+    launcher = base.parent/'MacOS/NotebookLM Studio' if args.target.startswith('macos') else base/('NotebookLM Studio.exe' if args.target.startswith('windows') else 'NotebookLM Studio')
+work = BUILD/'smoke'/(args.label+'-'+args.target)
 if work.exists():
     shutil.rmtree(work)
 work.mkdir(parents=True)
 suffix = '.exe' if args.target.startswith('windows') else ''
 ffmpeg,ffprobe = app/'bin'/('ffmpeg'+suffix),app/'bin'/('ffprobe'+suffix)
-fixtures = work/'originales'
+fixtures = work/'Originals'
 fixtures.mkdir()
 for name,geometry,fps,seconds in [('horizontal.mp4','1280x720',24,5),('short.mp4','406x720',30,5)]:
     subprocess.run([str(ffmpeg),'-v','error','-f','lavfi','-i',f'color=c=gray:s={geometry}:r={fps}:d={seconds}',
                     '-c:v','libx264','-preset','ultrafast','-threads','2',str(fixtures/name)],check=True)
 originals = {path.name:path.read_bytes() for path in fixtures.iterdir()}
-data = work/'datos'
-env = dict(os.environ,PATH=str(work/'sin-herramientas'),PYTHONHOME=str(work/'python-no-instalado'),
-           PYTHONPATH=str(work/'modulos-no-instalados'),NOTEBOOKLM_DATA_DIR=str(data))
+data = work/'Data'
+env = dict(os.environ,PATH=str(work/'no-tools'),PYTHONHOME=str(work/'no-system-python'),
+           PYTHONPATH=str(work/'no-system-modules'),NOTEBOOKLM_DATA_DIR=str(data))
 process = subprocess.Popen([str(launcher),'--sin-abrir'],env=env)
 cookie = ''
 address = None
@@ -45,7 +51,7 @@ def wait_until(condition,timeout=60):
     deadline = time.monotonic()+timeout
     while not condition():
         if time.monotonic()>deadline:
-            raise AssertionError('Tiempo de espera agotado')
+            raise AssertionError('Timed out waiting for the app')
         time.sleep(.1)
 
 
@@ -95,7 +101,7 @@ try:
     wait_until(lambda:not state()['busy'])
     final = state()
     assert all(item['state']=='done' for item in final['items']),final
-    downloads = work/'Descargas'
+    downloads = work/'Downloads'
     downloads.mkdir()
     expected_frames = {uploaded['horizontal.mp4']:48,uploaded['short.mp4']:60}
     for item in final['items']:
@@ -118,10 +124,10 @@ try:
     assert not list((data/'Sesiones').rglob('*.mp4'))
     assert all(hashlib.sha256(path.read_bytes()).hexdigest()==saved_hashes[path.name] for path in downloads.iterdir())
     assert all(path.read_bytes()==originals[path.name] for path in fixtures.iterdir())
-    record = {'target':args.target,'resultado':'OK','lote':'Horizontal 48 fotogramas; Short 60 fotogramas',
-              'cierre':'Sesión eliminada; descargas MP4/ZIP y originales conservados',
-              'runtime':'Python y FFmpeg incluidos, sin herramientas en PATH'}
-    (ROOT/'dist'/f'verificacion-{args.target}.json').write_text(json.dumps(record,ensure_ascii=False,indent=2)+'\n')
+    record = {'target':args.target,'result':'OK','batch':'Horizontal 48 frames; Short 60 frames',
+              'cleanup':'Session deleted; downloaded MP4/ZIP copies and originals preserved',
+              'runtime':'Bundled Python and FFmpeg, no system tools in PATH'}
+    (ROOT/'dist'/f'verification-{args.label}-{args.target}.json').write_text(json.dumps(record,ensure_ascii=False,indent=2)+'\n')
     print(json.dumps(record,ensure_ascii=False),flush=True)
 finally:
     if address and cookie and not shutdown:

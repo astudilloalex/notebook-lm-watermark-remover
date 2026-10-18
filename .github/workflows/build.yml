@@ -1,4 +1,4 @@
-name: Construir aplicaciones
+name: Build installers and applications
 
 on:
   push:
@@ -14,7 +14,7 @@ jobs:
   build:
     name: ${{ matrix.target }}
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 40
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -34,17 +34,26 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.13'
-      - name: Comprobar que el repositorio solo contiene fuentes
+      - name: Check source-only repository
         run: python scripts/check_source.py
-      - name: Compilar lanzador y crear paquete con sus dependencias
+      - name: Install Linux packaging tools
+        if: matrix.target == 'linux-x64'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm desktop-file-utils xdg-utils
+      - name: Build launcher and bundle verified dependencies
         env:
           GH_TOKEN: ${{ github.token }}
         run: python scripts/build.py --target ${{ matrix.target }}
-      - name: Ejecutar las pruebas con FFmpeg incluido
+      - name: Run source tests with bundled FFmpeg
         run: python scripts/test.py --target ${{ matrix.target }}
-      - name: Probar el paquete completo y su limpieza al cerrar
+      - name: Test portable app, downloads and session cleanup
         run: python scripts/smoke.py --target ${{ matrix.target }}
-      - name: Guardar paquete y comprobaciones
+      - name: Build native installers
+        run: python scripts/installers.py --target ${{ matrix.target }}
+      - name: Test install, launch, update and uninstall
+        run: python scripts/installers.py --target ${{ matrix.target }} --test
+      - name: Upload installers, portable apps and reports
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: NotebookLM-Studio-${{ matrix.target }}
@@ -54,7 +63,7 @@ jobs:
           compression-level: 0
 
   release:
-    name: Publicar versión etiquetada
+    name: Publish tagged release
     if: startsWith(github.ref, 'refs/tags/v')
     needs: build
     runs-on: ubuntu-22.04
@@ -64,17 +73,21 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
-      - name: Verificar que la etiqueta coincide con VERSION
-        env:
-          TAG_NAME: ${{ github.ref_name }}
-        run: test "$TAG_NAME" = "v$(cat VERSION)"
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
       - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
           path: release-files
           merge-multiple: true
-      - name: Publicar los cuatro paquetes
+      - name: Verify assets and render English release notes
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+          GH_REPO: ${{ github.repository }}
+        run: python scripts/release.py --tag "$TAG_NAME" --repository "$GH_REPO" --assets release-files --output release-notes.md
+      - name: Publish installers and application packages
         env:
           GH_TOKEN: ${{ github.token }}
           TAG_NAME: ${{ github.ref_name }}
           GH_REPO: ${{ github.repository }}
-        run: gh release create "$TAG_NAME" release-files/* --verify-tag --title "NotebookLM Studio $TAG_NAME" --generate-notes
+        run: gh release create "$TAG_NAME" release-files/* --verify-tag --title "NotebookLM Studio $TAG_NAME" --notes-file release-notes.md

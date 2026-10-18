@@ -1,4 +1,4 @@
-/* Lanzador PE de 64 bits: Win32 directo, sin CRT ni Python del sistema. */
+/* 64-bit PE launcher using Win32 directly, without a CRT or system Python. */
 typedef unsigned long DWORD;
 typedef unsigned short WORD;
 typedef unsigned short WCHAR;
@@ -30,7 +30,7 @@ static unsigned int append(WCHAR *to, unsigned int pos, const WCHAR *from) {
     return pos;
 }
 static void fail(void) {
-    MessageBoxW(0, (const WCHAR *)L"No se pudo abrir la aplicacion. Descomprime la carpeta completa y conserva sus archivos juntos.", (const WCHAR *)L"NotebookLM Studio", 0x10);
+    MessageBoxW(0, (const WCHAR *)L"Could not open the application. Reinstall it or extract the complete portable folder.", (const WCHAR *)L"NotebookLM Studio", 0x10);
     ExitProcess(1);
 }
 void start(void) {
@@ -46,7 +46,7 @@ void start(void) {
     pos = append(command, pos, (const WCHAR *)L"\" -I \"");
     pos = append(command, pos, entry);
     pos = append(command, pos, (const WCHAR *)L"\"");
-    /* Conserva argumentos como --sin-abrir para las comprobaciones de CI. */
+    /* Forward arguments such as --sin-abrir for CI checks. */
     WCHAR *args = GetCommandLineW();
     if (*args == '"') { args++; while (*args && *args != '"') args++; if (*args) args++; }
     else { while (*args && *args != ' ' && *args != '\t') args++; }

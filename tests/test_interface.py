@@ -1,4 +1,4 @@
-"""Pruebas de la cola local y su transporte HTTP con FFmpeg real."""
+"""Real FFmpeg tests for the local queue and HTTP transport."""
 
 import http.client
 import io
@@ -238,7 +238,7 @@ class InterfaceTests(unittest.TestCase):
         after = pixel(item.tail, 1.05)
         self.assertLess(abs(before[0]-before[1]), 5)
         self.assertGreater(after[0]-after[1], 150)
-        # Se incluye el fotograma 96 (índice 95); el cierre rojo empieza en el 97.
+        # Include frame 96 (index 95); the red closing segment starts at frame 97.
         self.app.update(item.id, dict(ui.DEFAULTS, recorte_modo="fotogramas", recorte_fotogramas=120-95-1))
         self.app.start([item.id])
         wait_until(lambda:not self.app.busy)

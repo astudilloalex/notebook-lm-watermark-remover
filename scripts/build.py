@@ -1,4 +1,4 @@
-"""Construye paquetes nativos desde el checkout y dependencias HTTPS verificadas."""
+"""Build native packages from the checkout and verified HTTPS dependencies."""
 
 import argparse
 from concurrent.futures import ThreadPoolExecutor
@@ -51,7 +51,7 @@ def resolve(identifier, value):
         asset = next(item for item in metadata['assets'] if item['name'] == release['asset'])
         result.update(url=asset['browser_download_url'], sha256=asset.get('digest','').removeprefix('sha256:'))
     if not re.fullmatch('[a-f0-9]{64}',result['sha256']):
-        raise RuntimeError('La dependencia no declara un SHA-256 verificable: '+identifier)
+        raise RuntimeError('Dependency does not declare a verifiable SHA-256: '+identifier)
     return result
 
 
@@ -61,17 +61,17 @@ def download(item):
     path = cache/(item['sha256']+'-'+item['file'])
     if path.exists():
         if digest(path) != item['sha256']:
-            raise RuntimeError('El archivo de caché no coincide con su SHA-256: '+item['id'])
+            raise RuntimeError('Cached file does not match its SHA-256: '+item['id'])
         return item,path
     for attempt in range(3):
         partial = path.with_name(path.name+'.part')
         try:
-            print('Descargando',item['id'],flush=True)
+            print('Downloading',item['id'],flush=True)
             request = urllib.request.Request(item['url'],headers={'User-Agent':'NotebookLM-Studio-build'})
             with urllib.request.urlopen(request,timeout=120) as response, partial.open('wb') as stream:
                 shutil.copyfileobj(response,stream,1024*1024)
             if digest(partial) != item['sha256']:
-                raise RuntimeError('SHA-256 incorrecto: '+item['id'])
+                raise RuntimeError('Incorrect SHA-256: '+item['id'])
             partial.replace(path)
             return item,path
         except OSError:
@@ -157,7 +157,7 @@ def zip_tree(folder, output):
             relative = str(path.relative_to(folder)).replace(os.sep,'/')
             if path.is_symlink():
                 if not path.resolve().is_relative_to(folder.resolve()):
-                    raise RuntimeError('Enlace fuera del paquete: '+relative)
+                    raise RuntimeError('Link outside the package: '+relative)
                 info = zipfile.ZipInfo(relative)
                 info.create_system = 3
                 info.external_attr = (stat.S_IFLNK|0o777)<<16
@@ -169,10 +169,10 @@ def zip_tree(folder, output):
 def build(target):
     system, architecture, identifiers, label = TARGETS[target]
     if platform.system().lower() != system or platform.machine().lower() != architecture.lower():
-        raise RuntimeError('Este objetivo se construye en su sistema y arquitectura nativos: '+target)
+        raise RuntimeError('This target must be built on its native OS and architecture: '+target)
     version = (ROOT/'VERSION').read_text().strip()
     if not re.fullmatch(r'\d+\.\d+\.\d+',version):
-        raise RuntimeError('VERSION debe contener tres números separados por puntos.')
+        raise RuntimeError('VERSION must contain three dot-separated integers.')
     BUILD.mkdir(exist_ok=True)
     config = json.loads((ROOT/'dependencies.json').read_text())['components']
     resolved = [resolve(identifier,config[identifier]) for identifier in identifiers]
@@ -203,23 +203,25 @@ def build(target):
         info = {'CFBundleName':'NotebookLM Studio','CFBundleDisplayName':'NotebookLM Studio','CFBundleIdentifier':'local.notebooklm.studio','CFBundleVersion':version,'CFBundleShortVersionString':version,'CFBundlePackageType':'APPL','CFBundleExecutable':'NotebookLM Studio','CFBundleIconFile':'icon.icns','LSMinimumSystemVersion':'12.0','LSUIElement':True,'NSHighResolutionCapable':True}
         (package/'NotebookLM Studio.app/Contents/Info.plist').write_bytes(plistlib.dumps(info))
         (package/'NotebookLM Studio.app/Contents/PkgInfo').write_bytes(b'APPL????')
-    docs = base if system != 'darwin' else package
-    shutil.copyfile(ROOT/'docs/USO.md',docs/'Guia-de-uso.md')
-    (docs/'LEEME.txt').write_text(f'NotebookLM Studio {version}\n\nDescomprime todo y abre {launcher.name}. Python y FFmpeg están incluidos.\nDESCARGA ANTES DE CERRAR: todos los resultados internos se eliminan al confirmar Eliminar sesión y cerrar.\nLos originales y las copias descargadas fuera de la sesión se conservan.\nCerrar solo la pestaña no apaga el servidor.\nLos paquetes no tienen firma comercial ni notarización Apple.\nConsulta Guia-de-uso.md para los botones y el recorte del cierre.\n',encoding='utf-8')
-    licenses = docs/'Licencias'
+    # Keep documentation and notices inside the installed payload on every OS.
+    docs = base
+    shutil.copyfile(ROOT/'docs/USAGE.md',docs/'USAGE.md')
+    shutil.copyfile(ROOT/'docs/INSTALLATION.md',docs/'INSTALLATION.md')
+    (docs/'README.txt').write_text(f'NotebookLM Studio {version}\n\nPython and FFmpeg are included. See INSTALLATION.md and USAGE.md.\nDOWNLOAD BEFORE CLOSING: internal results are deleted when you confirm session deletion.\nOriginals and downloaded copies outside the session are preserved.\nClosing only the browser tab does not stop the server.\nThese packages are unsigned and not notarized by Apple.\n',encoding='utf-8')
+    licenses = docs/'LICENSES'
     licenses.mkdir()
     python_license = base/'runtime/LICENSE.txt' if system == 'windows' else base/'runtime/lib/python3.13/LICENSE.txt'
     shutil.copyfile(python_license,licenses/'Python.txt')
     binary = app/'bin'/('ffmpeg.exe' if system == 'windows' else 'ffmpeg')
-    for option,name in [('-L','FFmpeg-licencia.txt'),('-buildconf','FFmpeg-configuracion.txt')]:
+    for option,name in [('-L','FFmpeg-license.txt'),('-buildconf','FFmpeg-configuration.txt')]:
         report = subprocess.run([str(binary),'-hide_banner',option],capture_output=True,check=True)
         (licenses/name).write_bytes(report.stdout+report.stderr)
-    (licenses/'COMPONENTES.json').write_text(json.dumps(resolved,indent=2)+'\n')
-    (licenses/'FUENTES.txt').write_text('Python: https://github.com/python/cpython y https://github.com/astral-sh/python-build-standalone\nFFmpeg: https://github.com/FFmpeg/FFmpeg\nRecetas Linux/Windows: https://github.com/BtbN/FFmpeg-Builds\nRecetas macOS: https://github.com/Martin-Riedl/FFmpeg-Builds\nAplicación y recetas: https://github.com/astudilloalex/notebook-lm-watermark-remover\nLos ejecutables de terceros no se modifican. COMPONENTES.json identifica las descargas y sus SHA-256.\n')
+    (licenses/'COMPONENTS.json').write_text(json.dumps(resolved,indent=2)+'\n')
+    (licenses/'SOURCES.txt').write_text('Python: https://github.com/python/cpython and https://github.com/astral-sh/python-build-standalone\nFFmpeg: https://github.com/FFmpeg/FFmpeg\nLinux/Windows build recipes: https://github.com/BtbN/FFmpeg-Builds\nmacOS build recipes: https://github.com/Martin-Riedl/FFmpeg-Builds\nApp and build recipes: https://github.com/astudilloalex/notebook-lm-watermark-remover\nThird-party executables are not modified. COMPONENTS.json identifies downloads and their SHA-256 hashes.\n')
     if system == 'linux':
         shutil.copyfile('/usr/share/common-licenses/LGPL-2.1',licenses/'glibc-LGPL-2.1.txt')
-        (licenses/'glibc-fuentes.txt').write_text('Lanzador enlazado estáticamente con '+os.confstr('CS_GNU_LIBC_VERSION')+'.\nFuentes: https://ftp.gnu.org/gnu/glibc/\nReceta: gcc -Os -static -s linux.c -o "NotebookLM Studio"\n')
-    shutil.copytree(ROOT/'launchers',docs/'Fuentes-lanzador')
+        (licenses/'glibc-sources.txt').write_text('Launcher statically linked with '+os.confstr('CS_GNU_LIBC_VERSION')+'.\nSources: https://ftp.gnu.org/gnu/glibc/\nBuild: gcc -Os -static -s linux.c -o "NotebookLM Studio"\n')
+    shutil.copytree(ROOT/'launchers',docs/'Launcher-Sources')
     output = ROOT/'dist'
     output.mkdir(exist_ok=True)
     artifact = output/f'NotebookLM-Studio-{label}.{ "tar.gz" if system == "linux" else "zip"}'
@@ -230,7 +232,7 @@ def build(target):
     else:
         zip_tree(package,artifact)
     artifact.with_name(artifact.name+'.sha256').write_text(digest(artifact)+'  '+artifact.name+'\n')
-    print('Paquete creado:',artifact,flush=True)
+    print('Package created:',artifact,flush=True)
 
 
 if __name__ == '__main__':

@@ -20,3 +20,6 @@ Sesiones/
 *.obj
 *.lib
 *.res
+*.deb
+*.rpm
+*.pkg
