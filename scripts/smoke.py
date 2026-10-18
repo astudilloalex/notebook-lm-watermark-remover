@@ -82,18 +82,24 @@ try:
     assert not state()['tools_error'],state()
     assert b'Descarga antes de cerrar' in request('GET','/')[1]
     ids = []
+    uploaded = {}
     for filename,content in originals.items():
-        ids.append(json.loads(request('POST','/api/upload?name='+quote(filename),content)[1])['id'])
-    request('POST','/api/tail',{'id':ids[0],'seconds':2})
+        identifier = json.loads(request('POST','/api/upload?name='+quote(filename),content)[1])['id']
+        ids.append(identifier)
+        uploaded[filename] = identifier
+    request('POST','/api/tail',{'id':uploaded['horizontal.mp4'],'seconds':2})
     wait_until(lambda:not state()['busy'])
-    assert state()['items'][0]['tail'] and state()['items'][0]['tail_precise'],state()
+    tail_item = next(item for item in state()['items'] if item['id']==uploaded['horizontal.mp4'])
+    assert tail_item['tail'] and tail_item['tail_precise'],state()
     request('POST','/api/run',{'ids':ids})
     wait_until(lambda:not state()['busy'])
     final = state()
     assert all(item['state']=='done' for item in final['items']),final
     downloads = work/'Descargas'
     downloads.mkdir()
-    for item,frames in zip(final['items'],(48,60)):
+    expected_frames = {uploaded['horizontal.mp4']:48,uploaded['short.mp4']:60}
+    for item in final['items']:
+        frames = expected_frames[item['id']]
         content = request('GET',f"/download/{item['id']}/result")[1]
         saved = downloads/item['result']
         saved.write_bytes(content)
